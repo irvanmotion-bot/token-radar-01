@@ -22,6 +22,9 @@
 // prices it higher even at the same TVL. Every term is stated in the dashboard and re-derivable
 // from the snapshot alone.
 
+import { farmPlan } from './farm.ts';
+import { chainSummary } from './chains.ts';
+
 export interface SnapshotProtocol {
   slug: string;
   name: string;
@@ -115,6 +118,7 @@ export interface RadarRow {
   name: string;
   category: string | null;
   chains: string[];
+  chain_summary: string;
   tvl_usd: number;
   change_7d: number | null;
   mcap_usd: number | null;
@@ -338,18 +342,7 @@ function actionFor(p: SnapshotProtocol, capital: number, chain: string): string 
 }
 
 export function farmSteps(p: SnapshotProtocol, age: number | null): FarmStep[] {
-  const chain = chainOf(p);
-  const capital = capitalFor(p);
-  const hold = holdDaysFor(age);
-  const action = actionFor(p, capital, chain);
-  return [
-    { text: `Use a fresh wallet that holds only the funds you plan to farm, and keep its seed phrase offline.`, cost: 'under $3 of gas for the first transaction', time: '5 minutes' },
-    { text: action, cost: `$${capital} of capital and about $${capital >= 150 ? 8 : 4} of gas`, time: '15 minutes to set up' },
-    { text: `Make one qualifying action each week, such as a deposit, a borrow, a swap or a vote.`, cost: 'about $2 of gas a week', time: '10 minutes a week' },
-    { text: `Hold the position for at least ${hold} days so the activity is counted in more than one snapshot.`, cost: `the $${capital} stays in the position`, time: `${hold} days` },
-    { text: `Before you withdraw, open the protocol's own points or rewards page and claim only from the link it publishes.`, cost: 'no fee to check, and never pay to claim', time: '10 minutes' },
-    { text: `Write the wallet, the dates and every transaction in a farm log so you can repeat the position or unwind it.`, cost: 'nothing but the log', time: '5 minutes' },
-  ];
+  return farmPlan(p, age);
 }
 
 export function liveRows(snapshot: Snapshot): LiveRow[] {
@@ -375,6 +368,7 @@ export function radarRow(row: BoardRow): RadarRow {
     name: row.name,
     category: row.category,
     chains: row.chains,
+    chain_summary: chainSummary(row.chains),
     tvl_usd: row.tvl_usd,
     change_7d: row.change_7d,
     mcap_usd: row.mcap_usd,
