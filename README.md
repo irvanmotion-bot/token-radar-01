@@ -1,6 +1,8 @@
 # Token Radar — pre-token protocol radar
 
-[![make.fun · token-radar-01](https://make.fun/badge/token-radar-01.svg)](https://make.fun/bounty/token-radar-01)
+[![make.fun · token-radar-01](https://make.fun/badge/token-radar-01.svg)](https://make.fun/bounty/token-radar-01?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01)
+[![rank](https://make.fun/badge/token-radar-01/irvanmotion-bot/token-radar-01/rank.svg)](https://make.fun/bounty/token-radar-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01)
+[![reward](https://make.fun/badge/token-radar-01/irvanmotion-bot/token-radar-01/reward.svg)](https://make.fun/bounty/token-radar-01?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01)
 
 Token Radar ranks DeFi protocols that have not yet issued a token, by an implied value derived from their own on-chain footprint. It reads a sealed snapshot of DefiLlama's protocol index, scores every pre-token protocol with a single transparent model, and renders a static, offline dashboard a reader can sort, filter and drill into.
 
