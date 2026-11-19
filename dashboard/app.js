@@ -117,6 +117,22 @@
     if (params.get('p')) state.selected = params.get('p');
     if (params.get('category')) state.category = params.get('category');
   }
+
+  // Rank badge: a short, colour-coded tier from a row's implied value, so the board reads at a
+  // glance. The bands are fixed relative to the whole board's top value, never a hardcoded name.
+  function rankTier(implied, max) {
+    var share = implied / max;
+    if (share >= 0.5) return { label: 'Tier 1', cls: 't1' };
+    if (share >= 0.2) return { label: 'Tier 2', cls: 't2' };
+    if (share >= 0.08) return { label: 'Tier 3', cls: 't3' };
+    return { label: 'Tier 4', cls: 't4' };
+  }
+
+  // A compact "money + momentum" health line for a protocol: TVL, then growth direction, then age.
+  function healthLine(r) {
+    var dir = r.change_7d === null || r.change_7d === undefined ? 'flat' : r.change_7d >= 0 ? 'growing' : 'shrinking';
+    return fmtUsd(r.tvl_usd) + ' TVL, ' + dir + ' over 7d, ' + fmtAge(r.age_days) + ' without a token';
+  }
   function writeHash() {
     var params = new URLSearchParams();
     if (state.q) params.set('q', state.q);
