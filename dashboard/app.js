@@ -37,7 +37,7 @@
     var maturity = model.maturity_floor + (Math.min(Math.max(age, 0), model.maturity_days) / model.maturity_days) * model.maturity_range;
     var breadth = 1 + (Math.max(1, row.chain_count || 1) - 1) * model.chain_weight;
     var depth = 1 + ((row.category_rank || 1) - 1) * model.depth_weight;
-    return Math.max(1, Math.round(row.tvl_usd * model.base_multiple * growthMult * maturity * breadth * depth));
+    return Math.max(1, Math.round(row.tvl_usd * row.base_multiple * growthMult * maturity * breadth * depth));
   }
 
   function el(tag, attrs) {
@@ -306,12 +306,12 @@
     var m = DATA.model;
     return el('section', { class: 'panel model' },
       el('h2', { text: 'How implied value is computed' }),
-      el('p', { class: 'sub', text: 'Every row is scored by one function of the snapshot figures. No protocol name is special-cased, and no row is hand-picked.' }),
+      el('p', { class: 'sub', text: 'Every row is scored by one function of the snapshot figures. No protocol name is special-cased, and no row is hand-picked. The base multiple is not a guess: it is fitted from the market itself.' }),
       el('div', { class: 'formula' },
-        el('span', null, 'implied = round( tvl_usd \u00d7 '), el('b', { text: String(m.base_multiple) }),
+        el('span', null, 'implied = round( tvl_usd \u00d7 '), el('b', { text: 'multiple' }),
         el('span', null, '\n  \u00d7 (1 + clamp(change_7d, ' + m.growth_floor + ', ' + m.growth_cap + ') / 100 \u00d7 '), el('b', { text: String(m.growth_weight) }), el('span', null, ')\n  \u00d7 (' + m.maturity_floor + ' + min(age_days, ' + m.maturity_days + ') / ' + m.maturity_days + ' \u00d7 ' + m.maturity_range + ')\n  \u00d7 (1 + (chain_count \u2212 1) \u00d7 '), el('b', { text: String(m.chain_weight) }), el('span', null, ')\n  \u00d7 (1 + (category_rank \u2212 1) \u00d7 '), el('b', { text: String(m.depth_weight) }), el('span', null, ') )')
       ),
-      el('p', { class: 'sub', text: 'TVL and seven-day growth come from the snapshot. Age is the time since the protocol was first listed \u2014 the best record of how long it has run with no token; an unlisted age uses ' + m.unknown_age_days + ' days. Chain breadth rewards a protocol distributed across many chains, and category depth rewards the leader of a category over a follower. The early radar is every pre-token protocol below the watchlist floor, by TVL, and the live-token protocols are set aside with their market caps shown.' })
+      el('p', { class: 'sub', text: 'The multiple is the median mcap/tvl of the ' + DATA.fitted_count + ' protocols in the snapshot that already trade, computed per category across ' + DATA.fitted_categories + ' categories (outliers outside a sane band dropped). A category with too few tokens falls back to the global median, ' + DATA.fallback_multiple.toFixed(3) + '. So Dexs protocols are priced at their own market multiple, Lending at its own, and so on \u2014 the same way a launch is actually valued, read out of the data rather than invented. TVL and seven-day growth come from the snapshot; age is the time since the protocol was first listed, the best record of how long it has run with no token.' })
     );
   }
 
@@ -339,6 +339,7 @@
       el('h3', { text: 'Implied value' }),
       el('div', { class: 'equation' },
         el('div', null, el('span', { text: 'TVL' }), el('b', { text: fmtUsd(row.tvl_usd) })),
+        el('div', null, el('span', { text: 'Base multiple' }), el('b', { text: String(row.base_multiple) + ' \u00d7 (' + (row.multiple_source === 'fitted' ? 'fitted' : 'fallback') + ')' })),
         el('div', null, el('span', { text: 'Seven-day growth' }), el('b', { text: fmtPct(row.change_7d) })),
         el('div', null, el('span', { text: 'Age with no token' }), el('b', { text: fmtAge(row.age_days) })),
         el('div', null, el('span', { text: 'Chain count' }), el('b', { text: String(row.chain_count) })),
@@ -349,7 +350,7 @@
         el('div', null, el('span', { text: 'Depth multiplier' }), el('b', { text: String(row.depth_multiplier) })),
         el('div', null, el('span', { text: 'Implied value' }), el('b', { text: fmtUsd(row.implied_value_usd) }))
       ),
-      el('p', { class: 'sub', text: 'Model ' + DATA.model_version + ': the same function scores every protocol. The page recomputes this row as ' + fmtUsd(recomputed) + (recomputed === row.implied_value_usd ? ', the same number board.json carries.' : ', which differs from the board: the data would be stale.') + ' This is an estimate, not a price.' })
+      el('p', { class: 'sub', text: 'Model ' + DATA.model_version + ': the base multiple is fitted from the median mcap/tvl of ' + DATA.fitted_count + ' token-bearing protocols in the same category (fallback ' + DATA.fallback_multiple.toFixed(3) + ' where a category has too few). The page recomputes this row as ' + fmtUsd(recomputed) + (recomputed === row.implied_value_usd ? ', the same number board.json carries.' : ', which differs from the board: the data would be stale.') + ' This is an estimate, not a price.' })
     ));
     dialog.appendChild(el('section', { class: 'detail-section' },
       el('h3', { text: 'Farm plan' }),

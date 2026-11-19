@@ -24,6 +24,7 @@
 
 import { farmPlan } from './farm.ts';
 import { chainSummary } from './chains.ts';
+import { calibrate, multipleFor, type Calibration } from './calibration.ts';
 
 export interface SnapshotProtocol {
   slug: string;
@@ -102,6 +103,7 @@ export interface BoardRow {
   implied_value_usd: number;
   model: {
     base_multiple: number;
+    multiple_source: string;
     growth_pct: number;
     growth_multiplier: number;
     maturity_multiplier: number;
@@ -131,6 +133,8 @@ export interface RadarRow {
   maturity_multiplier: number;
   breadth_multiplier: number;
   depth_multiplier: number;
+  base_multiple: number;
+  multiple_source: string;
 }
 
 export interface LiveRow {
@@ -153,6 +157,9 @@ export interface RadarData {
   board_size: number;
   early_size: number;
   live_size: number;
+  fitted_count: number;
+  fitted_categories: number;
+  fallback_multiple: number;
   rows: RadarRow[];
   live: LiveRow[];
 }
@@ -192,8 +199,11 @@ export function impliedValue(
   asOf: string,
   model: ModelConstants,
   byCategory: Map<string, SnapshotProtocol[]>,
+  cal: Calibration,
 ): {
   implied: number;
+  baseMultiple: number;
+  multipleSource: string;
   growthPct: number;
   growthMult: number;
   maturityMult: number;
@@ -212,9 +222,10 @@ export function impliedValue(
   const breadthMult = 1 + (chainCount - 1) * model.chain_weight;
   const catRank = categoryRank(protocol, byCategory);
   const depthMult = 1 + (catRank - 1) * model.depth_weight;
-  const base = protocol.tvl_usd * model.base_multiple;
+  const baseMultiple = multipleFor(cal, protocol.category);
+  const base = protocol.tvl_usd * baseMultiple;
   const implied = Math.max(1, Math.round(base * growthMult * maturityMult * breadthMult * depthMult));
-  return { implied, growthPct, growthMult, maturityMult, breadthMult, depthMult, age, catRank };
+  return { implied, baseMultiple, multipleSource: cal.byCategory.has(protocol.category ?? 'Other') ? 'fitted' : 'fallback', growthPct, growthMult, maturityMult, breadthMult, depthMult, age, catRank };
 }
 
 const VERSIONED = /\s(V\d+(\.\d+)?|v\d+(\.\d+)?|\d+\.\d+)$/;
@@ -252,6 +263,7 @@ export interface BoardSummary {
 export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): BoardRow[] {
   const index = bySlug(snapshot.protocols);
   const byCategory = byCategoryMap(snapshot.protocols);
+  const cal = calibrate(snapshot.protocols);
   const chosen = new Map<string, SnapshotProtocol>();
   for (const slug of snapshot.watchlist) {
     const p = index.get(slug);
@@ -264,7 +276,7 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
   for (const p of early) chosen.set(p.slug, p);
 
   const scored = [...chosen.values()].map((p) => {
-    const v = impliedValue(p, snapshot.as_of, model, byCategory);
+    const v = impliedValue(p, snapshot.as_of, model, byCategory, cal);
     return { p, ...v };
   });
   scored.sort((a, b) => b.implied - a.implied || (a.p.slug < b.p.slug ? -1 : 1));
@@ -286,7 +298,8 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
     category_rank: s.catRank,
     implied_value_usd: s.implied,
     model: {
-      base_multiple: model.base_multiple,
+      base_multiple: round4(s.baseMultiple),
+      multiple_source: s.multipleSource,
       growth_pct: s.growthPct,
       growth_multiplier: round4(s.growthMult),
       maturity_multiplier: round4(s.maturityMult),
@@ -381,6 +394,8 @@ export function radarRow(row: BoardRow): RadarRow {
     maturity_multiplier: row.model.maturity_multiplier,
     breadth_multiplier: row.model.breadth_multiplier,
     depth_multiplier: row.model.depth_multiplier,
+    base_multiple: row.model.base_multiple,
+    multiple_source: row.model.multiple_source,
   };
 }
 
@@ -388,6 +403,7 @@ export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): {
   const board = buildBoard(snapshot, model);
   const live = liveRows(snapshot);
   const early = board.filter((r) => !snapshot.watchlist.includes(r.slug)).length;
+  const cal = calibrate(snapshot.protocols);
   const radar: RadarData = {
     as_of: snapshot.as_of,
     source: snapshot.source,
@@ -398,6 +414,9 @@ export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): {
     board_size: board.length,
     early_size: early,
     live_size: live.length,
+    fitted_count: cal.fittedCount,
+    fitted_categories: cal.byCategory.size,
+    fallback_multiple: cal.fallback,
     rows: board.map(radarRow),
     live,
   };
